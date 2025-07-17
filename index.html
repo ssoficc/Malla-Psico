@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Malla Curricular Psicología</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #ffe6f0;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #d63384;
+    }
+    .grid {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+    }
+    .semester {
+      background: #ffd1e1;
+      border-radius: 10px;
+      padding: 10px;
+      min-width: 250px;
+      flex-shrink: 0;
+    }
+    .semester h2 {
+      text-align: center;
+      color: #c2185b;
+    }
+    .subject {
+      background: #ffebf3;
+      border: 1px solid #f48fb1;
+      margin: 5px 0;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      position: relative;
+    }
+    .subject.completed {
+      background: #f8bbd0;
+      text-decoration: line-through;
+    }
+    .subject.locked {
+      background: #fce4ec;
+      color: #aaa;
+      cursor: not-allowed;
+    }
+    .tooltip {
+      visibility: hidden;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 5px;
+      padding: 5px;
+      position: absolute;
+      z-index: 1;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .subject.locked:hover .tooltip {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <h1>Malla Curricular Psicología</h1>
+  <div class="grid" id="malla"></div>
+
+  <script>
+    const data = [
+      {
+        nombre: "Primer semestre",
+        materias: [
+          "Historia de la Psicología",
+          "Neurobiología de la mente",
+          "Fundamentos de la psicología",
+          "Epistemología",
+          "Herramientas para el trabajo intelectual",
+          "Arti. De saberes I :Construcción del sujeto y del objeto en psicología",
+          "Inicio a la formación en psicologia"
+        ]
+      },
+      {
+        nombre: "Segundo semestre",
+        materias: [
+          "Psicología del desarrollo",
+          "Procesos cognitivos",
+          "Teorías psicológicas",
+          "Métodos y herramientas orientadas a la extensión",
+          "Metodología general de la investigación",
+          "Arti. De saberes II :Psicología, Genero y derechos humanos",
+          "Formación integral"
+        ]
+      },
+      {
+        nombre: "Tercer semestre",
+        materias: [
+          "Psicología social",
+          "Psicología, sujeto y aprendizaje",
+          "Ética y deontología",
+          "Métodos y técnicas cuantitativa o cualitativa",
+          "Arti de saberes III :Clínica y subjetividad"
+        ]
+      },
+      {
+        nombre: "Cuarto semestre",
+        materias: [
+          {nombre: "Clínica I : Fundamentos Psicoanalíticos", prereq: ["Arti de saberes III :Clínica y subjetividad", "Ética y deontología"]},
+          {nombre: "Psicología y salud", prereq: ["Psicología del desarrollo", "Arti. De saberes II :Psicología, Genero y derechos humanos"]},
+          {nombre: "Herramientas de la Psicología Clínica", prereq: ["Arti de saberes III :Clínica y subjetividad"]},
+          "Métodos y técnicas cuantitativa o cualitativa",
+          {nombre: "Herramientas de la psicología social", prereq: ["Psicología social"]},
+          {nombre: "Diseño de proyectos", prereq: ["Metodología general de la investigación", "Métodos y técnicas cuantitativa o cualitativa"]},
+          {nombre: "Arti de saberes IV : Estado, sociedad y políticas públicas", prereq: ["Psicología social", "Arti. De saberes II :Psicología, Genero y derechos humanos"]}
+        ]
+      },
+      {
+        nombre: "Quinto semestre",
+        materias: [
+          "Psicologia Clínica",
+          {nombre: "Neuropsicología", prereq: ["Procesos cognitivos"]},
+          {nombre: "Clínica II : Teorías y técnicas de las intervenciones", prereq: ["Herramientas de la Psicología Clínica"]},
+          "Proyectos",
+          "Practicas integral",
+          {nombre: "Arti de saberes V : La psicología social y el problema de lo colectivo", prereq: ["Herramientas de la psicología social", "Arti de saberes IV : Estado, sociedad y políticas públicas"]},
+          {nombre: "Construcción de itinerario", prereq: ["Psicología social", "Psicología, sujeto y aprendizaje", "Clínica I : Fundamentos Psicoanalíticos", "Psicología y salud"]}
+        ]
+      },
+      {
+        nombre: "Sexto semestre",
+        materias: [
+          {nombre: "Problemáticas contemporáneas de la Psicología social", prereq: ["Psicología social"]},
+          {nombre: "Psicología y educación", prereq: ["Psicología, sujeto y aprendizaje"]},
+          {nombre: "Dispositivos Psicoterapéuticos", prereq: ["Clínica II : Teorías y técnicas de las intervenciones", "Clínica I : Fundamentos Psicoanalíticos"]},
+          "Proyectos Practicas integral",
+          {nombre: "Arti de saberes VI : diálogos y ámbitos interdisciplinarios", prereq: ["Arti. De saberes I :Construcción del sujeto y del objeto en psicología", "Arti. De saberes II :Psicología, Genero y derechos humanos", "Arti de saberes III :Clínica y subjetividad"]},
+          "Construcción de itinerario"
+        ]
+      }
+    ];
+
+    const completed = new Set(JSON.parse(localStorage.getItem('completedSubjects') || '[]'));
+
+    function render() {
+      const container = document.getElementById('malla');
+      container.innerHTML = '';
+
+      const allSubjects = {};
+      data.forEach(s => s.materias.forEach(m => {
+        const name = typeof m === 'string' ? m : m.nombre;
+        allSubjects[name] = m;
+      }));
+
+      for (const semestre of data) {
+        const div = document.createElement('div');
+        div.className = 'semester';
+        div.innerHTML = `<h2>${semestre.nombre}</h2>`;
+        semestre.materias.forEach(m => {
+          const name = typeof m === 'string' ? m : m.nombre;
+          const prereq = typeof m === 'string' ? [] : m.prereq || [];
+          const isCompleted = completed.has(name);
+          const locked = !prereq.every(r => completed.has(r));
+
+          const subjectDiv = document.createElement('div');
+          subjectDiv.className = 'subject';
+          if (isCompleted) subjectDiv.classList.add('completed');
+          if (locked && !isCompleted) subjectDiv.classList.add('locked');
+          subjectDiv.textContent = name;
+
+          if (locked && !isCompleted) {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.textContent = `Requiere: ${prereq.filter(r => !completed.has(r)).join(', ')}`;
+            subjectDiv.appendChild(tooltip);
+          }
+
+          subjectDiv.addEventListener('click', () => {
+            if (locked && !isCompleted) return;
+            if (completed.has(name)) {
+              completed.delete(name);
+            } else {
+              completed.add(name);
+            }
+            localStorage.setItem('completedSubjects', JSON.stringify([...completed]));
+            render();
+          });
+
+          div.appendChild(subjectDiv);
+        });
+        container.appendChild(div);
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
